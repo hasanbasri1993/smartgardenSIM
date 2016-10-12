@@ -1,36 +1,47 @@
-
 #include <GPRS_Shield_Arduino.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
-int sensor_temp = A0;
-int value_temp;
-int sensor_light = A1;
-int value_light;
-int sensor_humid = A2;
-int value_humid;
-#define PIN_TX    2
-#define PIN_RX    3
-//make sure that the baud rate of SIM900 is 9600!
-//you can use the AT Command(AT+IPR=9600) to set it through SerialDebug
-#define BAUDRATE  9600
+
+#define pin_tanah A0
+#define pin_ldr   A1
+#define led_notif 12
+#define jeda      300
+#include "DHT.h"
+#define DHTPIN 4
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
 
 char buffer[512];
-GPRS gprs(PIN_TX, PIN_RX, BAUDRATE);
+//Buat ARDUINO MEGA
+//GPRS gprs(51, 50, 9600);
+GPRS gprs(2, 3, 9600); //TX_PIN, RX_PIN, BAUDRATE
 void setup() {
   Serial.begin(9600);
-  // use DHCP
+  dht.begin();
+  pinMode(led_notif, OUTPUT);
+  digitalWrite(led_notif, LOW);
+
+  // delay buat nyari sinyal dulu 
+  delay(6000);
+  ceksim();
   while (!gprs.init()) {
-    delay(1000);
-    Serial.print("init error\r\n");
+    Serial.print(F("sim eerorrror\r\n"));
+    gagalsim();
   }
-  Serial.println("init Sukses");
+  Serial.println(F("sim ok"));
   delay(3000);
+  digitalWrite(led_notif, HIGH);
   // attempt DHCP
-  Serial.println("attempt DHCP ");
+  Serial.println(F("dapat kan ip ... "));
+  cekapn();
   while (!gprs.join(F("internet"))) {
-    Serial.println("gprs join network error");
-    delay(2000);
+    Serial.println(F("gagal masuk setting apn"));
+    gagalapn();
   }
+  digitalWrite(led_notif, HIGH);
+
+
+
 
 
 }
@@ -38,51 +49,106 @@ void setup() {
 void loop() {
 
   // successful DHCP
-  Serial.print("IP Address is ");
+  Serial.print(F("IP Address is "));
   Serial.println(gprs.getIPAddress());
 
   if (!gprs.connect(TCP, "184.106.153.149", 80)) {
-    Serial.println("connect error");
+    Serial.println(F("koneksi gagal"));
+    gagalkoneksi();
   } else {
-    Serial.println("connect 184.106.153.149 success");
+    Serial.println(F("Telah terbhubung ke thingspeak.com"));
+    digitalWrite(led_notif, HIGH);
+
   }
+  delay(500);
 
-  Serial.println("waiting to fetch...");
+  Serial.println(F("membaca sensor yang terhubung..."));
+  delay(500);
 
+  uint8_t baca_cahaya = analogRead(pin_ldr);
+  baca_cahaya = map(baca_cahaya, 0, 1023, 0, 100);
+  uint8_t baca_tanah = analogRead(pin_tanah);
+  baca_tanah = map(baca_tanah, 0, 1023, 0, 100);
+  delay(2000);
 
-  value_temp = analogRead(A0);
-  value_light = analogRead(A1);
-  value_humid = analogRead(A2);
-  String T = String(value_temp); // turn integer to string
-  String L = String(value_light); // turn integer to string
-  String H = String(value_humid); // turn integer to string
+  uint8_t h = dht.readHumidity();
+  uint8_t t = dht.readTemperature();
 
-  Serial.print(T);
-  Serial.print(L);
-  Serial.println(H);
-  String cmd = "GET /update?key=22TIOV8LXVYMAKX6&field1=" + T + "&field2=" + L + "&field3=" + H + "HTTP/1.0\r\n\r\n";
+  Serial.println(F("print hasil baca sensor :"));
+  Serial.print(F("Intensitas cahaya: "));
+  Serial.print(baca_cahaya);
+  Serial.print(F(" Kelmbaban Tanah: "));
+  Serial.print(baca_tanah);
+  Serial.print(F(" Suhu Sekitar: "));
+  Serial.print(t);
+  Serial.print(F(" Kelembaban Sekitar: "));
+  Serial.println(h);
+  delay(500);
+
+  String C = String(baca_cahaya); // turn integer to string
+  String T = String(baca_tanah); // turn integer to string
+  String S = String(t); // turn integer to string
+  String K = String(h); // turn integer to string
+
+  String cmd = "GET /update?key=22TIOV8LXVYMAKX6&field1=" + C + "&field2=" + T + "&field3=" + S + "&field4=" + K + "HTTP/1.0\r\n\r\n";
   char http_cmd[cmd.length() + 1];
   cmd.toCharArray(http_cmd, cmd.length() + 1);
-  //= "GET /update?key=22TIOV8LXVYMAKX6&field1=591&field2=582&field3=590 HTTP/1.0\r\n\r\n";
-
   gprs.send(http_cmd, sizeof(http_cmd) - 1);
 
-
   while (true) {
-    int ret = gprs.recv(buffer, sizeof(buffer) - 1);
+    uint8_t ret = gprs.recv(buffer, sizeof(buffer) - 1);
     if (ret <= 0) {
-      Serial.println("fetch over...");
+      Serial.println(F("fetch over..."));
       break;
     }
     buffer[ret] = '\0';
-    Serial.print("Recv: ");
+    Serial.print(F("Recv: "));
     Serial.print(ret);
-    Serial.print(" bytes: ");
+    Serial.print(F(" bytes: "));
     Serial.println(buffer);
   }
   gprs.close();
   gprs.disconnect();
 
-  delay(10000);
-
+  delay(20000);
 }
+
+void ceksim() {
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW);
+}
+
+void cekapn() {
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW);
+}
+
+
+void gagalsim() {
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW);
+}
+
+void gagalapn() {
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW);
+}
+
+void gagalkoneksi() {
+
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW); delay(jeda);
+  digitalWrite(led_notif, HIGH); delay(jeda); digitalWrite(led_notif, LOW);
+}
+
+
