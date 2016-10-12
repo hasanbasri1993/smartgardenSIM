@@ -4,7 +4,7 @@ const char* ssid     = "DaarulUluumLido";
 const char* password = "";
 
 const char* host = "api.thingspeak.com";
-const char* streamId   = "....................";
+//const char* streamId   = "....................";
 const char* privateKey = "22TIOV8LXVYMAKX6";
 
 void setup() {
@@ -31,12 +31,11 @@ void setup() {
   Serial.println(WiFi.localIP());
 }
 
-int value = 0;
+int value = analogRead(A0);
 
 void loop() {
   delay(5000);
-  ++value;
-
+  
   Serial.print("connecting to ");
   Serial.println(host);
   
@@ -49,11 +48,11 @@ void loop() {
   }
   
   // We now create a URI for the request
-  String url = "/?api_key=";
+  String url = "/update";
   //url += streamId;
-  //url += "?api_key=";
+  url += "?api_key=";
   url += privateKey;
-  url += "&fileld1=";
+  url += "&field1=";
   url += value;
   
   Serial.print("Requesting URL: ");
