@@ -1,11 +1,10 @@
-# smartgardenSIM
-EWREWREWRWER
-GFH SDH GDHDF HDFG 
-http://www.instructables.com/id/Send-sensor-data-DHT11-BMP180-to-ThingSpeak-with-a/?ALLSTEPS
-AT+SAPBR=3,1,"Contype","GPRS"
-AT+SAPBR=3,1,"APN","internet"
-AT+SAPBR =1,1
-AT+SAPBR=2,1
+#Pake library ini
+https://github.com/Seeed-Studio/GPRS_SIM900
 
-AT+CIPSTART="TCP","184.106.153.149",80
+#Manual LED indikator
+1. Cek SIM = kedap kedip 2x
+2. Cek APN = kedap kedip 3x
+3. Gagal Cek SIM = kedap kedip 4x
+4. Gagal Seting APN = kedap kedip 5x
+5. Gagal Konek Server = kedap kedip 6x
  
